@@ -24,64 +24,64 @@ class MotionDetection:
             (-1, 0),
             (0, -1)
         ]
+        self.max_offset_l = 2
+        self.max_offset_s = 1
 
     def block_difference(self, ba, bb):
-        shape = ba.shape
-        diff = 0
-        for row in range(shape[0]):
-            for x in range(shape[0]):
-                diff += abs(ba[y][x]-bb[y][x])
-        return diff
+        return np.sum(np.abs(ba-bb))
 
-    def detect_motion(self, prev_frame, now_frame, original=None):
+
+    def diamond_search_motion_estimation(self, prev_frame, now_frame, original=None):
+        """
+        I assume here to get as input numpy arrays.
+        """
         shape = prev_frame.shape
-        np.zeros_like(prev_frame)
+        motion_map = np.zeros_like(prev_frame)
 
-        for y in range(shape[1]-self.block_size):
-            for x in range(shape[0]-self.block_size):
-                match_psition = (y, x)
+        # notice here the approach at borders, it must be corrected
+        for row in range(shape[0]-self.block_size):
+            for col in range(shape[1]-self.block_size):
+                # iterating over all image positions
 
+                this_block = prev_frame[row:row+self.block_size, col:col+self.block_size]
+                match_position = (row, col)
+
+                # find the best large offset \w large diamond search
                 best_offset_l = None
                 while(best_offset_l != (0, 0)):
-                    # large diamond search
-                    min_diff = 1000000
-                    # orig_block = prev_frame[y:y+self.block_size][x:x+self.block_size]
-                    orig_block = [prev_frame[yt][x:x+self.block_size] for yt in range(y,y+self.block_size)]
-                    # print(f'original block size :{orig_block.shape}') 
-                    print(f'original block :{orig_block}') 
+                    min_diff = float('inf')
                     for offset in self.large_search_pattern_offsets:
-                        evaluating_position = (
-                            match_psition[0]+offset[0], match_psition[1]+offset[1])
-                        an_block = now_frame[y:y+self.block_size][x:x+self.block_size]
-                        diff = self.block_difference(orig_block, an_block)
+                        (row2, col2) = (match_position[0]+offset[0], match_position[1]+offset[1])
+                        row2 = min(max(row2,0), shape[0]-self.block_size-1)
+                        col2 = min(max(col2,0), shape[1]-self.block_size-1)
+                        block = now_frame[row2:row2+self.block_size, col2:col2+self.block_size]
+                        diff = self.block_difference(this_block, block)
                         if(diff < min_diff):
                             min_diff = diff
                             best_offset_l = offset
-                    match_psition = (
-                        match_psition[0]+best_offset_l[0], match_psition[1]+best_offset_l[1])
+                    match_position = (
+                        match_position[0]+best_offset_l[0], match_position[1]+best_offset_l[1])
 
-                # Once we found the best large offset we have to look in the smaller area
+                # small offset search, small diamond
                 best_offset_s = None
-                min_diff = 1000000
+                min_diff = float('inf')
                 for offset in self.small_search_pattern_offsets:
-                    evaluating_position = (
-                        match_psition[0]+offset[1], match_psition[1]+offset[0])
-                    diff = self.block_difference(
-                        prev_frame[y: y+self.block_size][x: x +
-                                                         self.block_size],
-                        now_frame[evaluating_position[0]: evaluating_position[0] +
-                                  self.block_size][evaluating_position[1]: evaluating_position[1]+self.block_size]
-                    )
+                    (row2,col2) = (match_position[0]+offset[1], match_position[1]+offset[0])
+                    row2 = min(max(row2,0), shape[0]-self.block_size-1)
+                    col2 = min(max(col2,0), shape[1]-self.block_size-1)
+                    block = now_frame[row2:row2+self.block_size, col2:col2+self.block_size]
+                    diff = self.block_difference(this_block, block)
                     if(diff < min_diff):
                         min_diff = diff
                         best_offset_s = offset
-                match_psition = (
-                    match_psition[0]+best_offset_s[0], match_psition[1]+best_offset_s[1])
+                match_position = (match_position[0]+best_offset_s[0], match_position[1]+best_offset_s[1])
 
-                start = cv2.circle(original, (x, y), 2,
-                                   (255, 0, 0), thickness=-1)
-                end = cv2.circle(
-                    original, (match_psition[1], match_psition[0]), 2, (0, 0, 255), thickness=-1)
-                cv2.imshow('starting point', start)
-                cv2.imshow('matching point', end)
-                cv2.waitKey(0)
+                if(not row%71 and not col%71):
+                    print(f"analyzing position  [{row},{col}] matches with [{match_position[0]},{match_position[1]}]")
+                # start = cv2.circle(original, (row, col), 2,
+                #                    (255, 0, 0), thickness=-1)
+                # end = cv2.circle(
+                #     original, (match_position[0], match_position[1]), 2, (0, 0, 255), thickness=-1)
+                # cv2.imshow('starting point', start)
+                # cv2.imshow('matching point', end)
+                # cv2.waitKey(0)
