@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+from scipy.ndimage.filters import gaussian_filter
 
 class MotionDetection:
     
@@ -36,20 +36,23 @@ class MotionDetection:
         I assume here to get as input numpy arrays.
         """
         shape = prev_frame.shape
-        motion_map = np.zeros_like(prev_frame)
+        motion_map = np.zeros_like(prev_frame, dtype='int8')
 
         # notice here the approach at borders, it must be corrected
         for row in range(shape[0]-self.block_size):
             for col in range(shape[1]-self.block_size):
                 # iterating over all image positions
+                motion_distance = -1
 
                 this_block = prev_frame[row:row+self.block_size, col:col+self.block_size]
                 match_position = (row, col)
 
                 # find the best large offset \w large diamond search
-                best_offset_l = None
-                while(best_offset_l != (0, 0)):
+                stopping_condition = False
+                while(not stopping_condition):
+                    motion_distance += 1
                     min_diff = float('inf')
+                    best_pos = match_position
                     for offset in self.large_search_pattern_offsets:
                         (row2, col2) = (match_position[0]+offset[0], match_position[1]+offset[1])
                         row2 = min(max(row2,0), shape[0]-self.block_size-1)
@@ -58,12 +61,11 @@ class MotionDetection:
                         diff = self.block_difference(this_block, block)
                         if(diff < min_diff):
                             min_diff = diff
-                            best_offset_l = offset
-                    match_position = (
-                        match_position[0]+best_offset_l[0], match_position[1]+best_offset_l[1])
+                            best_pos = (row2, col2)
+                    stopping_condition = (match_position == best_pos) 
+                    match_position = (best_pos)
 
                 # small offset search, small diamond
-                best_offset_s = None
                 min_diff = float('inf')
                 for offset in self.small_search_pattern_offsets:
                     (row2,col2) = (match_position[0]+offset[1], match_position[1]+offset[0])
@@ -73,15 +75,36 @@ class MotionDetection:
                     diff = self.block_difference(this_block, block)
                     if(diff < min_diff):
                         min_diff = diff
-                        best_offset_s = offset
-                match_position = (match_position[0]+best_offset_s[0], match_position[1]+best_offset_s[1])
+                        best_pos = (row2, col2)
+                if(best_pos == match_position):
+                    motion_distance+=1
+                match_position = (best_pos)
 
-                if(not row%71 and not col%71):
-                    print(f"analyzing position  [{row},{col}] matches with [{match_position[0]},{match_position[1]}]")
-                # start = cv2.circle(original, (row, col), 2,
-                #                    (255, 0, 0), thickness=-1)
-                # end = cv2.circle(
-                #     original, (match_position[0], match_position[1]), 2, (0, 0, 255), thickness=-1)
-                # cv2.imshow('starting point', start)
-                # cv2.imshow('matching point', end)
-                # cv2.waitKey(0)
+                # if(not row%100 and not col%100):
+                #     print(f"analyzing position  [{row},{col}] matches with [{match_position[0]},{match_position[1]}]")
+
+                # Compute the amount of movement
+                # For now, just add 1 to all terminating points
+                # motion_map[match_position] += 1
+                motion_map[match_position] += motion_distance
+                
+        print("Motion computation finished")
+        # Spread movement to all the surroundings
+        map_max = np.max(motion_map)
+        # bw = gaussian_filter(bw, sigma=.5, mode='constant')
+        # gfilter = cv2.getGaussianKernel(self.block_size, ((self.block_size-1)/6)) 
+        bw = (motion_map*(255/map_max))
+        bw = cv2.GaussianBlur(bw, (self.block_size, self.block_size), ((self.block_size-1)/6))
+        # bw = np.convolve(bw, gfilter, mode='valid')
+        # bw = bw.astype(int)
+        bw[bw<(80)] = 0
+        np.savetxt('motion_map', bw, fmt='%d')
+        # _, bw = cv2.threshold(bw, 178, 255, cv2.THRESH_BINARY)
+        # with gaussian convolution
+        # bw = bw.astype('int8')
+
+        cv2.imshow('Simple motion map', bw)
+        cv2.waitKey()
+
+
+
