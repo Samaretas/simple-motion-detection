@@ -1,6 +1,15 @@
 import numpy as np
 import cv2
+import time
 from scipy.ndimage.filters import gaussian_filter
+
+def timing(func):
+    def wrap(*args, **kwargs):
+        start = time.time()
+        func(*args, **kwargs)
+        end = time.time()
+        print(f"Function executed in {int(end-start)}s")
+    return wrap 
 
 class MotionDetection:
     
@@ -30,13 +39,13 @@ class MotionDetection:
     def block_difference(self, ba, bb):
         return np.sum(np.abs(ba-bb))
 
-
+    @timing
     def diamond_search_motion_estimation(self, prev_frame, now_frame, original=None):
         """
         I assume here to get as input numpy arrays.
         """
         shape = prev_frame.shape
-        motion_map = np.zeros_like(prev_frame, dtype='int8')
+        motion_map = np.zeros_like(prev_frame, dtype='int16')
 
         # notice here the approach at borders, it must be corrected
         for row in range(shape[0]-self.block_size):
@@ -64,6 +73,8 @@ class MotionDetection:
                             best_pos = (row2, col2)
                     stopping_condition = (match_position == best_pos) 
                     match_position = (best_pos)
+                    motion_map[match_position] += motion_distance
+
 
                 # small offset search, small diamond
                 min_diff = float('inf')
@@ -85,25 +96,36 @@ class MotionDetection:
 
                 # Compute the amount of movement
                 # For now, just add 1 to all terminating points
-                # motion_map[match_position] += 1
                 motion_map[match_position] += motion_distance
+                # motion_map[match_position] += 2**motion_distance
+                # motion_map[match_position] += 3**motion_distance
                 
         print("Motion computation finished")
         # Spread movement to all the surroundings
         map_max = np.max(motion_map)
         # bw = gaussian_filter(bw, sigma=.5, mode='constant')
         # gfilter = cv2.getGaussianKernel(self.block_size, ((self.block_size-1)/6)) 
-        bw = (motion_map*(255/map_max))
-        bw = cv2.GaussianBlur(bw, (self.block_size, self.block_size), ((self.block_size-1)/6))
-        # bw = np.convolve(bw, gfilter, mode='valid')
-        # bw = bw.astype(int)
-        bw[bw<(80)] = 0
+        thresh = map_max/3
+        thresher = lambda x: (x*(255/map_max)) if x>thresh else 0
+        vthresher = np.vectorize(thresher)
+        bw = vthresher(motion_map)
+        # bw = (bw*(255/map_max)).astype('uint8', copy=False)
+        bw = bw.astype('uint8', copy=False)
+        bw2 = bw
+        gauss_rounds = 5
+        for _ in range(gauss_rounds):
+            bw2 = cv2.GaussianBlur(bw2, (self.block_size, self.block_size), ((self.block_size-1)/6))
+        # map_max = np.max(bw2)
+        # bw2 = (bw2*(255/map_max)).astype('uint8', copy=False)
         np.savetxt('motion_map', bw, fmt='%d')
+        np.savetxt('motion_map_gauss', bw2, fmt='%d')
         # _, bw = cv2.threshold(bw, 178, 255, cv2.THRESH_BINARY)
         # with gaussian convolution
         # bw = bw.astype('int8')
 
         cv2.imshow('Simple motion map', bw)
+        cv2.imshow('Simple motion map Gaussed', bw2)
+        # cv2.imshow('original', original)
         cv2.waitKey()
 
 
