@@ -1,7 +1,9 @@
 import numpy as np
 from cv2 import cv2
+import matplotlib.pyplot as plt
 import time
 from scipy.ndimage.filters import gaussian_filter
+
 
 def timing(func):
     def wrap(*args, **kwargs):
@@ -9,10 +11,11 @@ def timing(func):
         func(*args, **kwargs)
         end = time.time()
         print(f"Function executed in {int(end-start)}s")
-    return wrap 
+    return wrap
+
 
 class MotionDetection:
-    
+
     def __init__(self):
         self.block_size = 5
         self.large_search_pattern_offsets = [
@@ -53,7 +56,8 @@ class MotionDetection:
                 # iterating over all image positions
                 motion_distance = -1
 
-                this_block = prev_frame[row:row+self.block_size, col:col+self.block_size]
+                this_block = prev_frame[row:row +
+                                        self.block_size, col:col+self.block_size]
                 match_position = (row, col)
 
                 # find the best large offset \w large diamond search
@@ -63,32 +67,35 @@ class MotionDetection:
                     min_diff = float('inf')
                     best_pos = match_position
                     for offset in self.large_search_pattern_offsets:
-                        (row2, col2) = (match_position[0]+offset[0], match_position[1]+offset[1])
-                        row2 = min(max(row2,0), shape[0]-self.block_size-1)
-                        col2 = min(max(col2,0), shape[1]-self.block_size-1)
-                        block = now_frame[row2:row2+self.block_size, col2:col2+self.block_size]
+                        (row2, col2) = (
+                            match_position[0]+offset[0], match_position[1]+offset[1])
+                        row2 = min(max(row2, 0), shape[0]-self.block_size-1)
+                        col2 = min(max(col2, 0), shape[1]-self.block_size-1)
+                        block = now_frame[row2:row2 +
+                                          self.block_size, col2:col2+self.block_size]
                         diff = self.block_difference(this_block, block)
                         if(diff < min_diff):
                             min_diff = diff
                             best_pos = (row2, col2)
-                    stopping_condition = (match_position == best_pos) 
+                    stopping_condition = (match_position == best_pos)
                     match_position = (best_pos)
                     motion_map[match_position] += motion_distance
-
 
                 # small offset search, small diamond
                 min_diff = float('inf')
                 for offset in self.small_search_pattern_offsets:
-                    (row2,col2) = (match_position[0]+offset[1], match_position[1]+offset[0])
-                    row2 = min(max(row2,0), shape[0]-self.block_size-1)
-                    col2 = min(max(col2,0), shape[1]-self.block_size-1)
-                    block = now_frame[row2:row2+self.block_size, col2:col2+self.block_size]
+                    (row2, col2) = (
+                        match_position[0]+offset[1], match_position[1]+offset[0])
+                    row2 = min(max(row2, 0), shape[0]-self.block_size-1)
+                    col2 = min(max(col2, 0), shape[1]-self.block_size-1)
+                    block = now_frame[row2:row2 +
+                                      self.block_size, col2:col2+self.block_size]
                     diff = self.block_difference(this_block, block)
                     if(diff < min_diff):
                         min_diff = diff
                         best_pos = (row2, col2)
                 if(best_pos == match_position):
-                    motion_distance+=1
+                    motion_distance += 1
                 match_position = (best_pos)
 
                 # if(not row%100 and not col%100):
@@ -99,14 +106,14 @@ class MotionDetection:
                 motion_map[match_position] += motion_distance
                 # motion_map[match_position] += 2**motion_distance
                 # motion_map[match_position] += 3**motion_distance
-                
+
         print("Motion computation finished")
         # Spread movement to all the surroundings
         map_max = np.max(motion_map)
         # bw = gaussian_filter(bw, sigma=.5, mode='constant')
-        # gfilter = cv2.getGaussianKernel(self.block_size, ((self.block_size-1)/6)) 
+        # gfilter = cv2.getGaussianKernel(self.block_size, ((self.block_size-1)/6))
         thresh = map_max/3
-        thresher = lambda x: (x*(255/map_max)) if x>thresh else 0
+        def thresher(x): return (x*(255/map_max)) if x > thresh else 0
         vthresher = np.vectorize(thresher)
         bw = vthresher(motion_map)
         # bw = (bw*(255/map_max)).astype('uint8', copy=False)
@@ -114,19 +121,21 @@ class MotionDetection:
         bw2 = bw
         gauss_rounds = 5
         for _ in range(gauss_rounds):
-            bw2 = cv2.GaussianBlur(bw2, (self.block_size, self.block_size), ((self.block_size-1)/6))
+            bw2 = cv2.GaussianBlur(
+                bw2, (self.block_size, self.block_size), ((self.block_size-1)/6))
         # map_max = np.max(bw2)
         # bw2 = (bw2*(255/map_max)).astype('uint8', copy=False)
-        np.savetxt('motion_map', bw, fmt='%d')
-        np.savetxt('motion_map_gauss', bw2, fmt='%d')
+        # np.savetxt('motion_map', bw, fmt='%d')
+        # np.savetxt('motion_map_gauss', bw2, fmt='%d')
         # _, bw = cv2.threshold(bw, 178, 255, cv2.THRESH_BINARY)
         # with gaussian convolution
         # bw = bw.astype('int8')
 
-        cv2.imshow('Simple motion map', bw)
-        cv2.imshow('Simple motion map Gaussed', bw2)
-        # cv2.imshow('original', original)
-        cv2.waitKey()
-
-
-
+        if not original is None:
+            plt.subplot(2, 2, (1,2)), plt.imshow(
+                cv2.cvtColor(original, cv2.COLOR_BGR2RGB))
+            plt.title('Original')
+            plt.subplot(2, 2, 3), plt.imshow(bw, 'gray')
+            plt.subplot(2, 2, 4), plt.imshow(bw2, 'gray')
+            plt.title('Saliency map')
+            plt.show()

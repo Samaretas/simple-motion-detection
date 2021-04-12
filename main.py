@@ -6,7 +6,6 @@ def read_video_stream(name):
     frames = list()
     colored_frames = list()
     cap= cv2.VideoCapture(name)
-    i=0
     while(cap.isOpened()):
         ret, frame = cap.read()
         if ret == False:
