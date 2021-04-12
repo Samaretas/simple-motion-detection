@@ -51,14 +51,14 @@ class MotionDetection:
         motion_map = np.zeros_like(prev_frame, dtype='int16')
 
         # notice here the approach at borders, at the moment we neglect right and bottom leftovers
-        for row in range(shape[0]-self.block_size):
-            for col in range(shape[1]-self.block_size):
+        for row in range(0, shape[0]-self.block_size, self.block_size):
+            for col in range(0, shape[1]-self.block_size, self.block_size):
                 # iterating over all image positions
                 shift_distance = -1
                 
                 this_block = prev_frame[row:row + self.block_size, col:col+self.block_size]
                 match_position = (row, col)
-
+                path = [match_position]
                 # find the best large offset \w large diamond search
                 stopping_condition = False
                 while(not stopping_condition):
@@ -77,8 +77,8 @@ class MotionDetection:
                             min_diff = diff
                             best_pos = (row2, col2)
                     stopping_condition = (match_position == best_pos)
+                    path.append(best_pos)
                     match_position = (best_pos)
-                    motion_map[match_position] += 1
 
                 # small offset search, small diamond
                 min_diff = float('inf')
@@ -95,16 +95,16 @@ class MotionDetection:
                         best_pos = (row2, col2)
                 if(best_pos != match_position):
                     shift_distance += 1
-                match_position = (best_pos)
+                    path.append(best_pos)
 
                 # Compute the amount of movement
                 # For now, just add 1 to all terminating points
-                motion_map[match_position] += 1
+                if shift_distance:
+                    for position in path:
+                        motion_map[position[0]][position[1]] += shift_distance
+                        # print(f"shift distance {shift_distance} for position {position}")
 
-
-
-        print("Motion computation finished")
         # Normalize motion map
         map_max = np.max(motion_map)
-        motion_map = motion_map/map_max
-        return motion_map.astype('uint8', copy=True)
+        normalized = motion_map.astype('float32')/map_max
+        return normalized

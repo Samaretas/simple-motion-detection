@@ -24,15 +24,17 @@ frames, colored_frames = read_video_stream('rolling_resized.mp4')
 print(f'read {len(frames)} frames, of size {frames[0].shape}')
 
 fidx = 30
+fidx2 = fidx+1
 
 detector = MotionDetection()
-motion_map = detector.diamond_search_motion_estimation(frames[fidx], frames[fidx+1])
+motion_map = detector.diamond_search_motion_estimation(frames[fidx], frames[fidx2])
 
 plt.subplot(2, 2, 1), plt.imshow(cv2.cvtColor(colored_frames[fidx], cv2.COLOR_BGR2RGB))
-plt.subplot(2, 2, 2), plt.imshow(cv2.cvtColor(colored_frames[fidx+1], cv2.COLOR_BGR2RGB))
+plt.subplot(2, 2, 2), plt.imshow(cv2.cvtColor(colored_frames[fidx2], cv2.COLOR_BGR2RGB))
 plt.title('Original')
 
-plt.subplot(2, 2, (3, 4)), plt.imshow(motion_map, 'gray')
+plt.subplot(2, 2, (3,4)), plt.imshow(motion_map, 'gray')
+np.savetxt('motion_map', motion_map, fmt='%f')
 plt.title('Motion map')
 
 plt.show()
