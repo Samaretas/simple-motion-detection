@@ -24,7 +24,7 @@ frames, colored_frames = read_video_stream('rolling_resized.mp4')
 print(f'read {len(frames)} frames, of size {frames[0].shape}')
 
 fidx = 30
-fidx2 = fidx+1
+fidx2 = fidx+2
 
 detector = MotionDetection()
 motion_map = detector.diamond_search_motion_estimation(frames[fidx], frames[fidx2])

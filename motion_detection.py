@@ -59,7 +59,8 @@ class MotionDetection:
                 this_block = prev_frame[row:row + self.block_size, col:col+self.block_size]
                 match_position = (row, col)
                 path = [match_position]
-                # find the best large offset \w large diamond search
+
+                # large diamond search
                 stopping_condition = False
                 while(not stopping_condition):
                     shift_distance += 1
@@ -80,7 +81,7 @@ class MotionDetection:
                     path.append(best_pos)
                     match_position = (best_pos)
 
-                # small offset search, small diamond
+                # small diamond search
                 min_diff = float('inf')
                 for offset in self.small_search_pattern_offsets:
                     (row2, col2) = (
@@ -97,14 +98,26 @@ class MotionDetection:
                     shift_distance += 1
                     path.append(best_pos)
 
-                # Compute the amount of movement
-                # For now, just add 1 to all terminating points
+                # Add motion to all the positions matched, motion is proportional to the amount of shift
                 if shift_distance:
                     for position in path:
                         motion_map[position[0]][position[1]] += shift_distance
-                        # print(f"shift distance {shift_distance} for position {position}")
 
-        # Normalize motion map
+        # Blurring
+        gauss_rounds = 3
+        for _ in range(gauss_rounds):
+            motion_map = cv2.GaussianBlur(
+                motion_map, (self.block_size, self.block_size), ((self.block_size-1)/6))
+        
+        # Normalization
         map_max = np.max(motion_map)
         normalized = motion_map.astype('float32')/map_max
+
+        # Thresholding
+        threshold = 1/3
+        def thresher(x): return (x*(255/map_max)) if x > threshold else 0
+        vthresher = np.vectorize(thresher)
+        normalized = vthresher(normalized)
+
+
         return normalized
