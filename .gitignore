@@ -4,3 +4,4 @@ resizer.py
 .vscode/*
 motion_map
 motion_map_gauss
+plots/*
