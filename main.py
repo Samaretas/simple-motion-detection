@@ -20,6 +20,7 @@ def read_video_stream(name):
     return frames, colored_frames
 
 
+# frames, colored_frames = read_video_stream('rolling.mp4')
 frames, colored_frames = read_video_stream('rolling_resized.mp4')
 # frames, colored_frames = read_video_stream('Rolling-resized1over4.m4v')
 print(f'read {len(frames)} frames, of size {frames[0].shape}')
@@ -27,14 +28,14 @@ print(f'read {len(frames)} frames, of size {frames[0].shape}')
 detector = MotionDetection()
 
 for i in range(len(frames)-1):
+    print(f"frames {i}-{i+1}")
     motion_map = detector.diamond_search_motion_estimation(frames[i], frames[i+1])
-
     plt.subplot(2, 2, 1), plt.imshow(cv2.cvtColor(colored_frames[i], cv2.COLOR_BGR2RGB))
+    plt.title(f'Original {i}')
     plt.subplot(2, 2, 2), plt.imshow(cv2.cvtColor(colored_frames[i+1], cv2.COLOR_BGR2RGB))
-    plt.title('Original')
-
+    plt.title(f'Original {i+1}')
     plt.subplot(2, 2, (3,4)), plt.imshow(motion_map, 'gray')
-    plt.title('Motion map')
+    plt.title(f'Motion map {i}-{i+1}')
     if not os.path.exists('./plots/'):
         os.makedirs('./plots/')
     plt.savefig('./plots/frames'+str(i)+'-'+str(i+1)+'.png')

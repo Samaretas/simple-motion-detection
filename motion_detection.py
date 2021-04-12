@@ -38,12 +38,13 @@ class MotionDetection:
         ]
         self.max_offset_l = 2
         self.max_offset_s = 1
+        self.previous_motion = None
 
     def block_difference(self, ba, bb):
         return np.sum(np.abs(ba-bb))
 
     @timing
-    def diamond_search_motion_estimation(self, prev_frame, now_frame):
+    def diamond_search_motion_estimation(self, prev_frame, now_frame, masked = False):
         """
         I assume here to get as input numpy arrays.
         """
@@ -118,6 +119,12 @@ class MotionDetection:
         def thresher(x): return (x*(255/map_max)) if x > threshold else 0
         vthresher = np.vectorize(thresher)
         normalized = vthresher(normalized)
-
+        if(masked):
+            if self.previous_motion is None:
+                self.previous_motion = (normalized.astype(bool)).astype('uint8')
+            else:
+                temp = normalized.astype(bool)
+                normalized *= self.previous_motion
+                self.previous_motion = temp
 
         return normalized
