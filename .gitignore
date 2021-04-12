@@ -2,3 +2,5 @@ __pycache__/*
 test.py
 resizer.py
 .vscode/*
+motion_map
+motion_map_gauss
