@@ -127,4 +127,4 @@ class MotionDetection:
                 normalized *= self.previous_motion
                 self.previous_motion = temp
 
-        return normalized
+        return normalized.astype('float32')
