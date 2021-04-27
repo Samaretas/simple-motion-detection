@@ -27,15 +27,20 @@ print(f'read {len(frames)} frames, of size {frames[0].shape}')
 
 detector = MotionDetection()
 
-for i in range(len(frames)-1):
-    print(f"frames {i}-{i+1}")
-    motion_map = detector.diamond_search_motion_estimation(frames[i], frames[i+1])
-    plt.subplot(2, 2, 1), plt.imshow(cv2.cvtColor(colored_frames[i], cv2.COLOR_BGR2RGB))
-    plt.title(f'Original {i}')
-    plt.subplot(2, 2, 2), plt.imshow(cv2.cvtColor(colored_frames[i+1], cv2.COLOR_BGR2RGB))
-    plt.title(f'Original {i+1}')
+for i in range(3, len(frames)-1, 2):
+    prev_frame_idx = i
+    next_frame_idx = i+1
+    print(f"frames {prev_frame_idx}-{next_frame_idx}")
+
+    prev_frame = ((frames[prev_frame_idx]+frames[prev_frame_idx-1])/2)
+
+    motion_map = detector.diamond_search_motion_estimation(prev_frame, frames[next_frame_idx])
+    plt.subplot(2, 2, 1), plt.imshow(cv2.cvtColor(colored_frames[prev_frame_idx], cv2.COLOR_BGR2RGB))
+    plt.title(f'Original {prev_frame_idx}')
+    plt.subplot(2, 2, 2), plt.imshow(cv2.cvtColor(colored_frames[next_frame_idx], cv2.COLOR_BGR2RGB))
+    plt.title(f'Original {next_frame_idx}')
     plt.subplot(2, 2, (3,4)), plt.imshow(motion_map, 'gray')
-    plt.title(f'Motion map {i}-{i+1}')
+    plt.title(f'Motion map {prev_frame_idx}-{next_frame_idx}')
     if not os.path.exists('./plots/'):
         os.makedirs('./plots/')
-    plt.savefig('./plots/frames'+str(i)+'-'+str(i+1)+'.png')
+    plt.savefig('./plots/frames'+str(prev_frame_idx)+'-'+str(next_frame_idx)+'.png')
